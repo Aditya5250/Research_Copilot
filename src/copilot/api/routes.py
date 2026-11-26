@@ -1,5 +1,8 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from copilot.api.schemas import HealthResponse
@@ -11,12 +14,14 @@ settings = get_settings()
 
 
 @router.get("/health", response_model=HealthResponse, tags=["System"])
-async def health_check(db: AsyncSession = Depends(get_db_session)) -> HealthResponse:
+async def health_check(
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> HealthResponse:
     """System health check endpoint verifying database connectivity."""
     db_status = "connected"
     try:
         await db.execute(text("SELECT 1"))
-    except Exception as e:
+    except (SQLAlchemyError, OSError) as e:
         db_status = f"unreachable ({e.__class__.__name__})"
 
     return HealthResponse(
